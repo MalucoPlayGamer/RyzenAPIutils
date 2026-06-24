@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/install.ps1", "destination": "/api/install" }
+    { "source": "/install.ps1", "destination": "/api/install" },
+    { "source": "/install-plugin.ps1", "destination": "/api/install-plugin" },
+    { "source": "/54fix.ps1", "destination": "/api/54fix" },
+    { "source": "/millennium.ps1", "destination": "/api/millennium" }
   ]
 }
