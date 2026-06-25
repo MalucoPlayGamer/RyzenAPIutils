@@ -281,7 +281,7 @@ function Write-Log {
 # Config
 # ---------------------------------------------------------------------------
 $Script:Name      = "GreenVapor"
-$Script:Link      = "https://github.com/MalucoPlayGamer/greenvapor-plugin/releases/latest/download/greenvapor.zip"
+$Script:Link      = "https://github.com/vaporgreen/greenvapor-plugin/releases/latest/download/greenvapor.zip"
 $MillenniumTimer  = 5
 
 if ($Script:Branch -eq 2) {
@@ -363,7 +363,7 @@ function Test-Millennium {
     # wsock32.dll is the Millennium proxy DLL dropped at the Steam root by BOTH
     # v2.x and v3.x; millennium.dll / python311.dll only exist on the older v2.x
     # layout. Match on any of them so detection works across versions.
-    foreach ($f in @("wsock32.dll", "millennium.dll", "python311.dll")) {
+    foreach ($f in @("wsock32.dll", "millennium.dll")) {
         if (Test-Path -LiteralPath (Join-Path $SteamPath $f)) { return $true }
     }
     return $false
@@ -668,6 +668,3 @@ function Main {
 }
 
 Main
-
-# By clem
-# Waike contributed a lot
