@@ -280,13 +280,13 @@ function Write-Log {
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-$Script:Name      = "GreenVapor"
+$Script:Name      = "greenvapor"
 $Script:Link      = "https://github.com/vaporgreen/greenvapor-plugin/releases/latest/download/greenvapor.zip"
 $MillenniumTimer  = 5
 
 if ($Script:Branch -eq 2) {
     $Script:Name = "steamtools-collection"
-    $Script:Link = "https://github.com/clemdotla/steamtools-collection/releases/download/Latest/steamtools-collection.zip"
+    $Script:Link = "https://github.com/MalucoPlayGamer/steamtools-collection/releases/latest/download/steamtools-collection.zip"
 }
 if ($Script:DownloadLink) { $Script:Link = $Script:DownloadLink }
 if ($Script:PluginName)   { $Script:Name = $Script:PluginName }
@@ -619,6 +619,9 @@ function Remove-SteamCfg {
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Main Modificado para baixar ambos os plugins
+# ---------------------------------------------------------------------------
 function Main {
 
     $steamPath = Get-SteamPath
@@ -640,27 +643,42 @@ function Main {
         Install-Steamtools $steamPath
     }
 
-    # Temporary (or not) forcing to get stable lua only backend
-    # $millenniumWasInstalled = Test-Millennium $steamPath
-    # if ($millenniumWasInstalled) {
-    #     Write-Log -Type INFO -Message $L["MillenniumAlready"]
-    # }
+    # Garante que o Millennium esteja instalado
     Install-Millennium $steamPath
 
-    Install-Plugin $steamPath $Script:Name $Script:Link
+    # --- NOVA LÓGICA: Lista com os dois plugins ---
+    $PluginsParaInstalar = @(
+        @{
+            Name = "greenvapor"
+            Link = "https://github.com/vaporgreen/greenvapor-plugin/releases/latest/download/greenvapor.zip"
+        },
+        @{
+            Name = "steamtools-collection"
+            Link = "https://github.com/MalucoPlayGamer/steamtools-collection/releases/latest/download/steamtools-collection.zip"
+        }
+    )
 
+    # Loop para baixar, extrair e ativar ambos os plugins
+    foreach ($plugin in $PluginsParaInstalar) {
+        Write-Log -Type INFO -Message "Iniciando processo para o plugin: $($plugin.Name)"
+        
+        # Instala o plugin atual do loop
+        Install-Plugin $steamPath $plugin.Name $plugin.Link
+        
+        # Ativa o plugin atual do loop
+        Enable-Plugin $steamPath $plugin.Name
+    }
+    # ----------------------------------------------
+
+    # Limpezas padrão do script
     Remove-BetaFlag $steamPath
     Remove-SteamCfg $steamPath
     Reset-SteamFlags $steamPath
-
-    Enable-Plugin $steamPath $Script:Name
 
     Write-Host
     if (-not $millenniumWasInstalled) {
         Write-Log -Type WARN -Message $L["MillenniumFirstBoot"]
     }
-    # Write-Log -Type WARN -Message $L["UpdateCheckDisabled"]
-    # Write-Log -Type OK   -Message $L["UpdateCheckManual"]
 
     Write-Log -Type INFO -Message $L["StartingSteam"]
     Start-Process (Join-Path $steamPath "steam.exe") -ArgumentList "-clearbeta"
