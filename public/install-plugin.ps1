@@ -320,7 +320,8 @@ function Get-SteamPath {
 # ---------------------------------------------------------------------------
 function Test-Steamtools {
     param([string]$SteamPath)
-    foreach ($f in @("dwmapi.dll", "xinput1_4.dll")) {
+    # Valida se as 3 DLLs principais apontadas na imagem estão presentes na raiz
+    foreach ($f in @("dwmapi.dll", "OpenSteamTool.dll", "xinput1_4.dll", "cloud_redirect.dll")) {
         if (Test-Path (Join-Path $SteamPath $f)) { return $true }
     }
     return $false
@@ -331,28 +332,52 @@ function Install-Steamtools {
 
     Write-Log -Type WARN -Message $L["SteamtoolsInstalling"]
 
-    # Steamtools is installed via CloudRedirect's prebuilt CLI (the /stfixer
-    # routine), rather than fetching and eval'ing a remote PowerShell script.
-    # Download into the Steam folder (clean ASCII path, always writable) instead
-    # of %TEMP%, which mangles to a broken 8.3 short path on accounts whose
-    # username has a space/non-ASCII char (e.g. C:\Users\EAF7~1).
-    $exe = Join-Path $SteamPath "CloudRedirectCLI.exe"
-    Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/CloudRedirectCLI.exe" -OutFile $exe -TimeoutSec 60 -UseBasicParsing
-    if (-not (Test-Path $exe)) { throw $L["SteamtoolsFailed"] }
-
-    for ($attempt = 1; $attempt -le 5; $attempt++) {
-        Write-Log -Type LOG -Message $L["SteamtoolsInstalling"]
-        Start-Process $exe "/stfixer" -Wait
-        if (Test-Steamtools $SteamPath) {
-            Write-Log -Type OK -Message $L["SteamtoolsInstalled"]
-            Remove-Item $exe -Force -ErrorAction SilentlyContinue
-            return
-        }
-        Write-Log -Type ERR -Message $L["SteamtoolsRetrying"]
+    # 1. Limpeza do arquivo .toml anterior para redefinir as configurações criadas pelo OpenSteamTools
+    $TomlFile = Join-Path $SteamPath "opensteamtool.toml"
+    if (Test-Path $TomlFile) {
+        Write-Log -Type AUX -Message "Removendo opensteamtool.toml antigo para aplicar novas configurações..."
+        Remove-Item $TomlFile -Force -ErrorAction SilentlyContinue
     }
 
-    Remove-Item $exe -Force -ErrorAction SilentlyContinue
-    throw $L["SteamtoolsFailed"]
+    # 2. Configuração dos caminhos e downloads do CloudRedirect (Mantendo a lógica anterior)
+    $DesktopPath = [Environment]::GetFolderPath("Desktop")
+    $TargetExe   = Join-Path $DesktopPath "CloudRedirect.exe"
+    $TargetDll   = Join-Path $SteamPath "cloud_redirect.dll"
+
+    try {
+        Write-Log -Type LOG -Message "Baixando CloudRedirect.exe para a Área de Trabalho..."
+        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/CloudRedirect.exe" -OutFile $TargetExe -TimeoutSec 60 -UseBasicParsing
+
+        Write-Log -Type LOG -Message "Baixando cloud_redirect.dll para a raiz da Steam..."
+        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/cloud_redirect.dll" -OutFile $TargetDll -TimeoutSec 60 -UseBasicParsing
+
+        # ===================================================================
+        # 3. NOVA LÓGICA: Download individual das 3 DLLs do seu GitHub
+        # ===================================================================
+        # SUBSTITUA ESTE LINK ABAIXO PELO CAMINHO DO SEU REPOSITÓRIO (PASTA RAW)
+        $BaseUrl = "https://raw.githubusercontent.com/MalucoPlayGamer/RyzenAPIutils/main/public/opst"
+
+        $DllsParaBaixar = @("dwmapi.dll", "OpenSteamTool.dll", "xinput1_4.dll")
+
+        foreach ($dll in $DllsParaBaixar) {
+            $UrlDownload = "$BaseUrl/$dll"
+            $DestinoDll  = Join-Path $SteamPath $dll
+            
+            Write-Log -Type LOG -Message "Baixando $dll direto do GitHub..."
+            Invoke-WebRequest -Uri $UrlDownload -OutFile $DestinoDll -TimeoutSec 60 -UseBasicParsing
+        }
+        # ===================================================================
+    }
+    catch {
+        throw "Falha ao baixar os componentes necessários: $($_.Exception.Message)"
+    }
+
+    # Validação final do ambiente
+    if (Test-Steamtools $SteamPath) {
+        Write-Log -Type OK -Message $L["SteamtoolsInstalled"]
+    } else {
+        throw $L["SteamtoolsFailed"]
+    }
 }
 
 # ---------------------------------------------------------------------------
