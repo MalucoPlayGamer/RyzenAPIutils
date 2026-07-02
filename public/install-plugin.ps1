@@ -320,18 +320,17 @@ function Get-SteamPath {
 # ---------------------------------------------------------------------------
 function Test-Steamtools {
     param([string]$SteamPath)
-    # Valida se as 3 DLLs principais apontadas na imagem estão presentes na raiz
+    # Valida se TODAS as DLLs estão presentes na raiz para dar como instalado
     foreach ($f in @("dwmapi.dll", "OpenSteamTool.dll", "xinput1_4.dll", "cloud_redirect.dll")) {
-        if (Test-Path (Join-Path $SteamPath $f)) { return $true }
+        if (-not (Test-Path (Join-Path $SteamPath $f))) { return $false }
     }
-    return $false
+    return $true
 }
 
 function Install-Steamtools {
     param([string]$SteamPath)
 
     Write-Log -Type WARN -Message $L["SteamtoolsInstalling"]
-
     # 1. Limpeza do arquivo .toml anterior para redefinir as configurações criadas pelo OpenSteamTools
     $TomlFile = Join-Path $SteamPath "opensteamtool.toml"
     if (Test-Path $TomlFile) {
@@ -339,22 +338,18 @@ function Install-Steamtools {
         Remove-Item $TomlFile -Force -ErrorAction SilentlyContinue
     }
 
-    # 2. Configuração dos caminhos e downloads do CloudRedirect (Mantendo a lógica anterior)
+    # 2. Configuração dos caminhos e downloads do CloudRedirect
     $DesktopPath = [Environment]::GetFolderPath("Desktop")
     $TargetExe   = Join-Path $DesktopPath "CloudRedirect.exe"
     $TargetDll   = Join-Path $SteamPath "cloud_redirect.dll"
 
     try {
         Write-Log -Type LOG -Message "Baixando CloudRedirect.exe para a Área de Trabalho..."
-        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/CloudRedirect.exe" -OutFile $TargetExe -TimeoutSec 60 -UseBasicParsing
+        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/CloudRedirect.exe" -OutFile $TargetExe -TimeoutSec 60 -UserAgent "Mozilla/5.0" -UseBasicParsing
 
         Write-Log -Type LOG -Message "Baixando cloud_redirect.dll para a raiz da Steam..."
-        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/cloud_redirect.dll" -OutFile $TargetDll -TimeoutSec 60 -UseBasicParsing
+        Invoke-WebRequest -Uri "https://github.com/Selectively11/CloudRedirect/releases/latest/download/cloud_redirect.dll" -OutFile $TargetDll -TimeoutSec 60 -UserAgent "Mozilla/5.0" -UseBasicParsing
 
-        # ===================================================================
-        # 3. NOVA LÓGICA: Download individual das 3 DLLs do seu GitHub
-        # ===================================================================
-        # SUBSTITUA ESTE LINK ABAIXO PELO CAMINHO DO SEU REPOSITÓRIO (PASTA RAW)
         $BaseUrl = "https://raw.githubusercontent.com/MalucoPlayGamer/RyzenAPIutils/main/public/opst"
 
         $DllsParaBaixar = @("dwmapi.dll", "OpenSteamTool.dll", "xinput1_4.dll")
@@ -363,8 +358,8 @@ function Install-Steamtools {
             $UrlDownload = "$BaseUrl/$dll"
             $DestinoDll  = Join-Path $SteamPath $dll
             
-            Write-Log -Type LOG -Message "Baixando $dll direto do GitHub..."
-            Invoke-WebRequest -Uri $UrlDownload -OutFile $DestinoDll -TimeoutSec 60 -UseBasicParsing
+            Write-Log -Type LOG -Message "Baixando $dll ..."
+            Invoke-WebRequest -Uri $UrlDownload -OutFile $DestinoDll -TimeoutSec 60 -UserAgent "Mozilla/5.0" -UseBasicParsing
         }
         # ===================================================================
     }
@@ -450,6 +445,8 @@ function Install-Millennium {
 # ---------------------------------------------------------------------------
 function Install-Plugin {
     param([string]$SteamPath, [string]$Name, [string]$Link)
+
+    $LocalDisplayName = $Name.Substring(0,1).ToUpper() + $Name.Substring(1).ToLower()
 
     $pluginsDir = Join-Path $millDir "plugins"
     if (-not (Test-Path $pluginsDir)) {
@@ -543,7 +540,7 @@ function Install-Plugin {
     }
 
     if (Test-Path $zipPath) { Remove-Item $zipPath -ErrorAction SilentlyContinue }
-    Write-Log -Type OK -Message ($L["PluginInstalled"] -f $DisplayName)
+    Write-Log -Type OK -Message ($L["PluginInstalled"] -f $LocalDisplayName)
 }
 
 # ---------------------------------------------------------------------------
